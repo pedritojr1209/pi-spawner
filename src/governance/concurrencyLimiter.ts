@@ -55,3 +55,5 @@ export class ConcurrencyLimiter {
     }
   }
 }
+
+export const globalConcurrencyLimiter = new ConcurrencyLimiter({ maxConcurrency: 3 });

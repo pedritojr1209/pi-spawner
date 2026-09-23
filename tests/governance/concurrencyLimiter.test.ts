@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { ConcurrencyLimiter, ConcurrencyLimitExceeded } from '../../src/governance/concurrencyLimiter.js';
+import { ConcurrencyLimiter, ConcurrencyLimitExceeded, globalConcurrencyLimiter } from '../../src/governance/concurrencyLimiter.js';
 
 describe('concurrencyLimiter', () => {
   it('starts with zero active count', () => {
@@ -75,5 +75,16 @@ describe('concurrencyLimiter', () => {
     const limiter = new ConcurrencyLimiter({ maxConcurrency: 3 });
     limiter.release();
     expect(limiter.getActiveCount()).toBe(0);
+  });
+
+  it('globalConcurrencyLimiter exists with max 3 slots', () => {
+    expect(globalConcurrencyLimiter.getActiveCount()).toBe(0);
+    expect(globalConcurrencyLimiter.tryAcquire()).toBe(true);
+    expect(globalConcurrencyLimiter.tryAcquire()).toBe(true);
+    expect(globalConcurrencyLimiter.tryAcquire()).toBe(true);
+    expect(globalConcurrencyLimiter.tryAcquire()).toBe(false);
+    globalConcurrencyLimiter.release();
+    globalConcurrencyLimiter.release();
+    globalConcurrencyLimiter.release();
   });
 });

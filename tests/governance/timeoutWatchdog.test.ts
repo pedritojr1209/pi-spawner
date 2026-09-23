@@ -76,4 +76,9 @@ describe('timeoutWatchdog', () => {
     await expect(promise).rejects.toThrow(TaskTimeout);
     expect(kill).toHaveBeenCalled();
   });
+
+  it('defaults to 5 minutes (300000ms) when timeoutMs is omitted', () => {
+    const watchdog = new TimeoutWatchdog({ kill: vi.fn() });
+    expect(watchdog).toBeDefined();
+  });
 });

@@ -6,7 +6,7 @@ export class TaskTimeout extends Error {
 }
 
 export interface TimeoutWatchdogOptions {
-  timeoutMs: number;
+  timeoutMs?: number;
   kill: () => void | Promise<void>;
 }
 
@@ -17,7 +17,7 @@ export class TimeoutWatchdog {
   private settled: boolean;
 
   constructor(options: TimeoutWatchdogOptions) {
-    this.timeoutMs = options.timeoutMs;
+    this.timeoutMs = options.timeoutMs ?? 300_000;
     this.killCallback = options.kill;
     this.timer = null;
     this.settled = false;

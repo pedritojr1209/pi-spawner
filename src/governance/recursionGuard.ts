@@ -1,15 +1,18 @@
-export class MaxDepthExceeded extends Error {
+export class MaxRecursionDepthExceeded extends Error {
   constructor(message?: string) {
     super(message ?? 'Maximum recursion depth exceeded');
-    this.name = 'MaxDepthExceeded';
+    this.name = 'MaxRecursionDepthExceeded';
   }
 }
 
-export const DEFAULT_MAX_DEPTH = 3;
-export const DEPTH_ENV_VAR = 'PI_SPAWNER_DEPTH';
+export const MaxDepthExceeded = MaxRecursionDepthExceeded;
+
+export const DEFAULT_MAX_DEPTH = 2;
+export const DEPTH_ENV_VAR = 'PI_AGENT_DEPTH';
+export const DEPTH_ENV_VAR_FALLBACK = 'PI_SPAWNER_DEPTH';
 
 export function getCurrentDepth(): number {
-  const raw = process.env[DEPTH_ENV_VAR];
+  const raw = process.env[DEPTH_ENV_VAR] ?? process.env[DEPTH_ENV_VAR_FALLBACK];
   if (raw === undefined) return 0;
   const parsed = parseInt(raw, 10);
   return Number.isNaN(parsed) ? 0 : parsed;
@@ -28,8 +31,8 @@ export class RecursionGuard {
   }
 
   checkDepth(depth: number): void {
-    if (depth >= this.maxDepth) {
-      throw new MaxDepthExceeded(`Depth ${depth} exceeds maximum of ${this.maxDepth}`);
+    if (depth > this.maxDepth) {
+      throw new MaxRecursionDepthExceeded(`Depth ${depth} exceeds maximum of ${this.maxDepth}`);
     }
   }
 
