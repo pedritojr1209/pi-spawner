@@ -12,12 +12,19 @@ On resource-constrained hardware (e.g., 8GB RAM, older AVX-only CPUs), unmanaged
 
 ---
 
-## 2. Solution
+## 2. Solution / Orthogonal Dimensions
 Build an extensible, micro-kernel Pi extension with strict **Separation of Concerns (SoC)** that decouples:
 * **The Ingress:** Direct human slash commands (`/agent`) and autonomous model tool calls (`subagent()`).
 * **The Surface Driver:** Where the subagent renders (WezTerm Split Pane, WezTerm Tab, External OS Window, or Headless Child Process).
-* **The Runtime Adapter:** What executable runs (Pi subagent, Claude Code, Aider, or native PowerShell scripts).
+* **The Runtime Adapter:** What executable runs (Pi subagent, Claude Code, Aider, or native PowerShell workers).
 * **The IPC Mailbox:** An asynchronous, file-based JSON envelope transport (`.pi/handoffs/<taskId>/`) that requires zero networking ports or long-running daemons.
+* **The Context Policy:** Defines the context projection spectrum for subagent input directives: isolated, projected, or native.
+
+### Context Projection Spectrum
+The context policy describes how structured input directives flow from parent to child:
+* **`isolated`** (MVP Baseline): Fresh context; zero parent conversational residue. Default across all runtimes.
+* **`projected`** (Universal Transfer): High-signal distillation (decisions, constraints, anchors) injected as a standard Markdown preamble into the prompt. Multi-CLI compatible.
+* **`native`** (Deferred): Native session file cloning. Pi-only.
 
 The architecture enforces deterministic governance: schema-level tool whitelisting, canonical path-traversal blocking, environment-variable recursion bounds (`depth <= 2`), and a 3-tier cascading model resolution hierarchy.
 
@@ -78,6 +85,29 @@ The extension is partitioned into five distinct, decoupled modules:
    * `subagent()` triggers synchronous, blocking execution that awaits the mailbox envelope.
 
 2. **Core Dispatcher & State Machine (`src/core/`):**
+   * **Task Envelope Contract (`src/core/envelope.ts`):** Defines the `TaskInput` and `TaskResult` schemas for mailbox transport.
+
+     ```typescript
+     export type ContextMode = 'isolated' | 'projected' | 'native';
+
+     export interface TaskInput {
+       taskId: string;
+       parentTaskId?: string;
+       task: string;
+       contextMode: ContextMode;
+       context?: {
+         decisions?: string[];
+        constraints?: string[];
+         anchors?: [];
+         transcriptTail?: Array<{ role: 'user' | 'assistant'; content: string }>;
+       };
+       tools?: string[];
+       model?: string;
+       cwd?: string;
+     }
+     ```
+
+     **Note:** Dispatcher coordinates execution; it does not parse or transpile proprietary session formats.
    * **Task Envelope Generation:** Generates a unique task ID (`task-<timestamp>-<rand>`), creates `.pi/handoffs/<taskId>/input.json`, and listens for `result.json`.
    * **Cascading Discovery:** Resolves agent manifests by scanning `./.pi/agents/*.md` first, falling back to `~/.pi/agents/*.md`.
    * **Model Resolution Cascade (Rule 4.4):**
@@ -171,6 +201,7 @@ In accordance with the seam-first testing methodology, testing is anchored at fo
 * **Persistent Compounding Mental Models (`expertise/*.md`):** Agents do not self-update markdown memory stores without human review.
 * **Network Sockets / Cross-Device Mesh:** No HTTP/WebSocket servers running on the host; communication is strictly local filesystem IPC.
 * **Docker / Micro-VM Sandboxing:** No Linux containers or virtualization; process isolation relies strictly on OS-level child processes and canonical path guards.
+* **Native Session Cloning / Raw Multi-Turn Conversation Thread forking:** Native session cloning and raw multi-turn conversation thread forking across heterogeneous CLIs are deferred to post-MVP; `isolated` is MVP baseline, `projected` planned for Issue #11.
 
 ---
 
