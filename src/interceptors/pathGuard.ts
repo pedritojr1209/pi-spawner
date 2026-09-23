@@ -19,7 +19,10 @@ export class PathGuard {
     const workspaceLower = this.workspaceRoot.toLowerCase();
     const resolvedLower = resolved.toLowerCase();
 
-    if (!resolvedLower.startsWith(workspaceLower)) {
+    const isRoot = resolvedLower === workspaceLower;
+    const isWithin = resolvedLower.startsWith(workspaceLower + path.sep);
+
+    if (!isRoot && !isWithin) {
       throw new SecurityError('Access outside workspace is denied');
     }
   }

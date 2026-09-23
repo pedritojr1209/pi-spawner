@@ -34,8 +34,8 @@ export class HeadlessDriver implements SurfaceDriver {
     };
 
     const timeoutHandle = setTimeout(() => {
-      if (child.pid) {
-        process.kill(-child.pid, 'SIGTERM');
+      if (!child.killed) {
+        child.kill('SIGTERM');
       }
       instance.exitCode = -1;
       instance.endedAt = new Date();
@@ -63,13 +63,9 @@ export class HeadlessDriver implements SurfaceDriver {
     const child = this.processes.get(instance.id);
     if (child?.pid) {
       try {
-        process.kill(-child.pid, 'SIGTERM');
+        child.kill('SIGTERM');
       } catch {
-        try {
-          process.kill(child.pid, 'SIGTERM');
-        } catch {
-          // already dead
-        }
+        // already dead
       }
     }
     this.processes.delete(instance.id);

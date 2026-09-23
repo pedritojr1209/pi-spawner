@@ -36,4 +36,12 @@ describe('PathGuard', () => {
   it('blocks paths that resolve outside workspace after normalization', () => {
     expect(() => PathGuard.validate('src\\..\\..\\Windows\\System32')).toThrow('Access outside workspace is denied');
   });
+
+  it('blocks sibling folders with similar prefix', () => {
+    expect(() => PathGuard.validate('..\\pi-spawner_fake')).toThrow('Access outside workspace is denied');
+  });
+
+  it('allows workspace root itself', () => {
+    expect(() => PathGuard.validate('.')).not.toThrow();
+  });
 });
