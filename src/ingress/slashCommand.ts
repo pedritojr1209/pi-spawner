@@ -65,27 +65,20 @@ function tokenize(input: string): string[] {
 
 function parseCliOptions(tokens: string[]): { model?: string } {
   const options: { model?: string } = {};
-  let i = 0;
 
-  while (i < tokens.length) {
+  for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
 
     if (token === '--model') {
-      i++;
-      if (i < tokens.length && tokens[i] === '=') {
+      if (i + 1 < tokens.length && tokens[i + 1] === '=') {
         i++;
       }
-      if (i < tokens.length) {
-        options.model = tokens[i];
+      if (i + 1 < tokens.length) {
+        options.model = tokens[i + 1];
         i++;
       }
     } else if (token.startsWith('--model=')) {
       options.model = token.slice('--model='.length);
-      i++;
-    } else if (token === '=') {
-      i++;
-    } else {
-      i++;
     }
   }
 

@@ -104,4 +104,34 @@ describe('SubagentTool', () => {
     await SubagentTool.invoke('scout', 'do work', { model: 'deepseek' });
     expect(Dispatcher.dispatch).toHaveBeenCalled();
   });
+
+  it('uses default Mailbox directory aligned with Dispatcher', async () => {
+    const mockManifest = {
+      name: 'scout',
+      runtime: 'agy',
+      surface: 'wezterm-pane',
+      description: 'Fast recon',
+      source: 'local' as const,
+      filePath: '/fake/.pi/agents/scout.md',
+    };
+
+    vi.mocked(AgentDiscovery.discover).mockResolvedValue([mockManifest]);
+    vi.mocked(Dispatcher.dispatch).mockResolvedValue({
+      taskId: 'task-align',
+      surfaceInstance: { id: 'inst-4', pid: 1234, exitCode: null },
+    });
+
+    const mailboxInstance = new Mailbox();
+    vi.mocked(Mailbox.prototype.readResult).mockResolvedValue({
+      taskId: 'task-align',
+      exitCode: 0,
+      summary: 'aligned',
+      modifiedFiles: [],
+      completedAt: new Date().toISOString(),
+    } as any);
+
+    const result = await SubagentTool.invoke('scout', 'do work');
+    expect(Mailbox.prototype.readResult).toHaveBeenCalledWith('task-align');
+    expect(result.taskId).toBe('task-align');
+  });
 });

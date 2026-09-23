@@ -3,6 +3,7 @@ import path from 'node:path';
 import { PathGuard, SecurityError } from '../interceptors/pathGuard.js';
 import { HeadlessDriver } from '../surfaces/headless.js';
 import { PiRuntime } from '../runtimes/piRuntime.js';
+import { Mailbox } from '../ipc/mailbox.js';
 import type { AgentManifest } from '../types/agent.js';
 import type { TaskInputEnvelope } from '../types/envelope.js';
 
@@ -50,12 +51,8 @@ export class Dispatcher {
     const effectiveModel = cliOptions?.model || manifest.model || parentSessionModel || '';
 
     const taskId = `task-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    const handoffDir = path.join(process.cwd(), '.pi', 'handoffs', taskId);
 
-    PathGuard.validate(handoffDir);
-
-    fs.mkdirSync(handoffDir, { recursive: true });
-
+    const mailbox = new Mailbox();
     const inputEnvelope: TaskInputEnvelope = {
       taskId,
       agentName: manifest.name,
@@ -66,10 +63,7 @@ export class Dispatcher {
       createdAt: new Date().toISOString(),
     };
 
-    fs.writeFileSync(
-      path.join(handoffDir, 'input.json'),
-      JSON.stringify(inputEnvelope, null, 2)
-    );
+    mailbox.writeInput(taskId, inputEnvelope as any);
 
     process.env.PI_AGENT_DEPTH = String(depth + 1);
 

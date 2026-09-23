@@ -17,7 +17,7 @@ Build an extensible, micro-kernel Pi extension with strict **Separation of Conce
 * **The Ingress:** Direct human slash commands (`/agent`) and autonomous model tool calls (`subagent()`).
 * **The Surface Driver:** Where the subagent renders (WezTerm Split Pane, WezTerm Tab, External OS Window, or Headless Child Process).
 * **The Runtime Adapter:** What executable runs (Pi subagent, Claude Code, Aider, or native PowerShell workers).
-* **The IPC Mailbox:** An asynchronous, file-based JSON envelope transport (`.pi/handoffs/<taskId>/`) that requires zero networking ports or long-running daemons.
+ * **The IPC Mailbox:** An asynchronous, file-based JSON envelope transport (`.pi-spawner/tasks/<taskId>/`) that requires zero networking ports or long-running daemons.
 * **The Context Policy:** Defines the context projection spectrum for subagent input directives: isolated, projected, or native.
 
 ### Context Projection Spectrum
@@ -108,7 +108,7 @@ The extension is partitioned into five distinct, decoupled modules:
      ```
 
      **Note:** Dispatcher coordinates execution; it does not parse or transpile proprietary session formats.
-   * **Task Envelope Generation:** Generates a unique task ID (`task-<timestamp>-<rand>`), creates `.pi/handoffs/<taskId>/input.json`, and listens for `result.json`.
+    * **Task Envelope Generation:** Generates a unique task ID (`task-<timestamp>-<rand>`), creates `.pi-spawner/tasks/<taskId>/input.json`, and listens for `result.json`.
    * **Cascading Discovery:** Resolves agent manifests by scanning `./.pi/agents/*.md` first, falling back to `~/.pi/agents/*.md`.
    * **Model Resolution Cascade (Rule 4.4):**
      $$\text{Model} = \text{CLI Flag} \parallel \text{Manifest Frontmatter} \parallel \text{Parent Session Model}$$
@@ -159,11 +159,11 @@ The extension is partitioned into five distinct, decoupled modules:
    * `ToolFilter`: Strips forbidden tool declarations from the subagent's registered schema based on the manifest's `tools` array.
 
 6. **IPC Transport (`src/ipc/`):**
-   * Uses the file-based Mailbox Pattern under `.pi/handoffs/<taskId>/`.
+   * Uses the file-based Mailbox Pattern under `.pi-spawner/tasks/<taskId>/`.
    * `input.json`: Contains task prompt, model, depth, and allowed tools.
    * `result.json`: Contains exit code, structured summary (< 300 words), modified files, and completion timestamp.
    * Detection uses a hybrid `fs.watch` with a 500ms `setInterval` polling fallback to survive cross-drive and Windows filesystem buffering issues.
-   * **Atomic Write Pattern:** Writers must write to `.pi/handoffs/<taskId>/result.json.tmp` and execute an atomic rename (`fs.renameSync`) to `result.json` to prevent Windows `EBUSY` / `EPERM` file-locking collisions with the file watcher.
+   * **Atomic Write Pattern:** Writers must write to `.pi-spawner/tasks/<taskId>/result.json.tmp` and execute an atomic rename (`fs.renameSync`) to `result.json` to prevent Windows `EBUSY` / `EPERM` file-locking collisions with the file watcher.
    * **Orphan Detection:** If a visible pane's process terminates or is closed by the user without producing `result.json`, the task is marked as `ABORTED_BY_USER`.
 
 ---
@@ -209,7 +209,7 @@ In accordance with the seam-first testing methodology, testing is anchored at fo
 * **Target Host:** Lenovo ThinkCentre M82 (Intel Core i5-3470, 8GB DDR3 RAM, Windows 10 Pro).
 * **Terminal Environment:** WezTerm + PowerShell 7.6.5.
 * **AVX Limitation:** The host CPU does not support AVX2 instructions; all native Node binaries and CLI tools must operate under standard x86-64/AVX instructions.
-* **Disk Cleanliness:** Handoff artifacts under `.pi/handoffs/` should be pruned automatically after task completion (retaining only the last 20 tasks for debugging).
+* **Disk Cleanliness:** Handoff artifacts under `.pi-spawner/tasks/` should be pruned automatically after task completion (retaining only the last 20 tasks for debugging).
 
 ---
 

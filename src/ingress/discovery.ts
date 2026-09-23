@@ -22,16 +22,22 @@ export class AgentDiscovery {
       const parsed = matter(raw);
       const data = parsed.data;
 
-      if (!data.name || typeof data.name !== 'string') {
+      const name = typeof data.name === 'string' ? data.name : null;
+      if (!name) {
         return null;
       }
 
+      const asString = (value: unknown, fallback: string) =>
+        typeof value === 'string' ? value : fallback;
+
       const manifest: AgentManifest = {
-        name: data.name,
-        runtime: typeof data.runtime === 'string' ? data.runtime : 'pi',
-        surface: typeof data.surface === 'string' ? data.surface : 'headless',
+        name,
+        runtime: asString(data.runtime, 'pi'),
+        surface: asString(data.surface, 'headless'),
         model: typeof data.model === 'string' ? data.model : undefined,
-        tools: Array.isArray(data.tools) ? data.tools.filter((t: unknown) => typeof t === 'string') : undefined,
+        tools: Array.isArray(data.tools)
+          ? data.tools.filter((t: unknown) => typeof t === 'string')
+          : undefined,
         description: typeof data.description === 'string' ? data.description : undefined,
         command_template: typeof data.command_template === 'string' ? data.command_template : undefined,
       };
