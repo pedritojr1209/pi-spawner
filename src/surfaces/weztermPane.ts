@@ -1,17 +1,5 @@
-import { execFile, execFileSync } from 'node:child_process';
 import type { SurfaceDriver, SurfaceInstance, LaunchOptions } from './surface.interface.js';
-
-function execWezterm(args: string[]): Promise<{ stdout: string }> {
-  return new Promise((resolve, reject) => {
-    execFile('wezterm', args, { encoding: 'utf8' }, (error, stdout) => {
-      if (error) {
-        reject(error);
-      } else {
-        resolve({ stdout });
-      }
-    });
-  });
-}
+import { buildShellCommand, execWezterm, isWeztermAvailable, listPaneIds } from './weztermCli.js';
 
 export class WezTermPaneDriver implements SurfaceDriver {
   readonly id = 'wezterm-pane';
@@ -19,12 +7,7 @@ export class WezTermPaneDriver implements SurfaceDriver {
   private panes = new Map<string, { paneId: string }>();
 
   isAvailable(): boolean {
-    try {
-      execFileSync('wezterm', ['--version'], { stdio: 'ignore' });
-      return true;
-    } catch {
-      return false;
-    }
+    return isWeztermAvailable();
   }
 
   async launch(command: string, options: LaunchOptions = {}): Promise<SurfaceInstance> {
@@ -45,17 +28,9 @@ export class WezTermPaneDriver implements SurfaceDriver {
       args.push('--cwd', options.cwd);
     }
 
-    let shellCommand = command;
-    if (options.args && options.args.length > 0) {
-      shellCommand = `${command} ${options.args.join(' ')}`;
-    }
+    args.push('--', ...buildShellCommand(command, options.args));
 
-    const shellArgs = process.platform === 'win32'
-      ? ['cmd', '/c', shellCommand]
-      : ['bash', '-c', shellCommand];
-    args.push('--', ...shellArgs);
-
-    const { stdout } = await execWezterm(args);
+    const stdout = await execWezterm(args);
     const paneId = stdout.trim();
 
     this.panes.set(taskId, { paneId });
@@ -81,13 +56,21 @@ export class WezTermPaneDriver implements SurfaceDriver {
     this.panes.delete(instance.id);
   }
 
+  async close(instance: SurfaceInstance, exitCode: number): Promise<void> {
+    if (exitCode === 0) {
+      await this.kill(instance);
+    }
+  }
+
   async isAlive(instance: SurfaceInstance): Promise<boolean> {
+    const entry = this.panes.get(instance.id);
+    if (!entry?.paneId) {
+      return false;
+    }
+
     try {
-      const { stdout } = await execWezterm(['cli', 'list', '--format', 'json']);
-      const entry = this.panes.get(instance.id);
-      if (!entry?.paneId) return false;
-      const panes = JSON.parse(stdout);
-      return panes.some((p: { pane_id: string }) => String(p.pane_id) === entry.paneId);
+      const paneIds = await listPaneIds();
+      return paneIds.includes(entry.paneId);
     } catch {
       return false;
     }

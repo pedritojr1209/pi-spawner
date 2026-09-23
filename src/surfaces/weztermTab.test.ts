@@ -9,26 +9,41 @@ vi.mock('node:child_process', async () => {
   };
 });
 
-import { execFile, execFileSync } from 'node:child_process';
+vi.mock('./weztermCli.js', async () => {
+  const actual = await vi.importActual('./weztermCli.js');
+  return {
+    ...actual,
+    execWezterm: vi.fn(),
+    isWeztermAvailable: vi.fn(),
+    buildShellCommand: vi.fn(),
+    listPaneIds: vi.fn(),
+  };
+});
+
+import { execWezterm, isWeztermAvailable, buildShellCommand, listPaneIds } from './weztermCli.js';
 import { WezTermTabDriver } from './weztermTab.js';
 
-const mockExecFile = execFile as unknown as ReturnType<typeof vi.fn>;
-const mockExecFileSync = execFileSync as unknown as ReturnType<typeof vi.fn>;
+const mockExecWezterm = execWezterm as unknown as ReturnType<typeof vi.fn>;
+const mockIsWeztermAvailable = isWeztermAvailable as unknown as ReturnType<typeof vi.fn>;
+const mockBuildShellCommand = buildShellCommand as unknown as ReturnType<typeof vi.fn>;
+const mockListPaneIds = listPaneIds as unknown as ReturnType<typeof vi.fn>;
 
 describe('WezTermTabDriver', () => {
   let driver: WezTermTabDriver;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockExecFile.mockReset();
-    mockExecFileSync.mockReset();
+    mockExecWezterm.mockReset();
+    mockIsWeztermAvailable.mockReset();
+    mockBuildShellCommand.mockReset();
+    mockListPaneIds.mockReset();
+
     driver = new WezTermTabDriver();
 
-    mockExecFile.mockImplementation((_file: string, _args: string[], _options: any, callback: any) => {
-      callback(null, '', '');
-    });
-
-    mockExecFileSync.mockReturnValue(Buffer.from('wezterm 20240101'));
+    mockIsWeztermAvailable.mockReturnValue(true);
+    mockExecWezterm.mockResolvedValue('12345\r\n');
+    mockBuildShellCommand.mockReturnValue(['cmd', '/c', 'echo hello']);
+    mockListPaneIds.mockResolvedValue(['12345']);
   });
 
   it('isAvailable returns true when wezterm is in PATH', () => {
@@ -36,99 +51,98 @@ describe('WezTermTabDriver', () => {
   });
 
   it('isAvailable returns false when wezterm is not found', () => {
-    mockExecFileSync.mockImplementation(() => {
-      throw new Error('ENOENT');
-    });
+    mockIsWeztermAvailable.mockReturnValue(false);
     expect(driver.isAvailable()).toBe(false);
   });
 
   it('launch spawns a tab with default options', async () => {
-    mockExecFile.mockImplementation((_file: string, _args: string[], _options: any, callback: any) => {
-      callback(null, '12345\r\n', '');
-    });
-
     const instance = await driver.launch('echo hello');
     expect(instance.id).toMatch(/^wezterm-tab-/);
     expect(instance.pid).toBe(0);
     expect(instance.exitCode).toBeNull();
     expect(instance.startedAt).toBeInstanceOf(Date);
     expect(instance.endedAt).toBeNull();
-    expect(mockExecFile).toHaveBeenCalledWith(
-      'wezterm',
-      expect.arrayContaining(['cli', 'spawn', '--new-window=false', '--']),
-      { encoding: 'utf8' },
-      expect.any(Function)
+    expect(mockExecWezterm).toHaveBeenCalledWith(
+      expect.arrayContaining(['cli', 'spawn', '--new-window=false', '--'])
     );
   });
 
   it('launch includes cwd option', async () => {
-    mockExecFile.mockImplementation((_file: string, _args: string[], _options: any, callback: any) => {
-      callback(null, '12345\r\n', '');
-    });
-
     await driver.launch('echo hello', { cwd: '/tmp' });
-    expect(mockExecFile).toHaveBeenCalledWith(
-      'wezterm',
-      expect.arrayContaining(['--cwd', '/tmp']),
-      expect.anything(),
-      expect.any(Function)
+    expect(mockExecWezterm).toHaveBeenCalledWith(
+      expect.arrayContaining(['--cwd', '/tmp'])
     );
   });
 
   it('launch trims CRLF from pane ID', async () => {
-    mockExecFile.mockImplementation((_file: string, _args: string[], _options: any, callback: any) => {
-      callback(null, '  67890\r\n  ', '');
-    });
+    mockExecWezterm.mockResolvedValue('  67890\r\n  ');
 
     const instance = await driver.launch('echo hello');
     await driver.kill(instance);
-    expect(mockExecFile).toHaveBeenCalledWith(
-      'wezterm',
-      expect.arrayContaining(['kill-pane', '--pane-id', '67890']),
-      expect.anything(),
-      expect.any(Function)
+    expect(mockExecWezterm).toHaveBeenCalledWith(
+      expect.arrayContaining(['kill-pane', '--pane-id', '67890'])
     );
   });
 
   it('kill calls wezterm cli kill-pane with pane ID', async () => {
-    mockExecFile.mockImplementation((_file: string, _args: string[], _options: any, callback: any) => {
-      callback(null, '12345\r\n', '');
-    });
-
     const instance = await driver.launch('echo hello');
     await driver.kill(instance);
-    expect(mockExecFile).toHaveBeenCalledWith(
-      'wezterm',
-      expect.arrayContaining(['kill-pane', '--pane-id', '12345']),
-      expect.anything(),
-      expect.any(Function)
+    expect(mockExecWezterm).toHaveBeenCalledWith(
+      expect.arrayContaining(['kill-pane', '--pane-id', '12345'])
     );
   });
 
   it('kill handles already-dead pane gracefully', async () => {
-    mockExecFile.mockImplementation((_file: string, _args: string[], _options: any, callback: any) => {
-      callback(null, '12345\r\n', '');
-    });
-
     const instance = await driver.launch('echo hello');
-    mockExecFile.mockImplementation((_file: string, _args: string[], _options: any, callback: any) => {
-      callback(new Error('pane not found'), '', '');
-    });
+    mockExecWezterm.mockRejectedValue(new Error('pane not found'));
 
     await expect(driver.kill(instance)).resolves.toBeUndefined();
   });
 
   it('launch passes extra args', async () => {
-    mockExecFile.mockImplementation((_file: string, _args: string[], _options: any, callback: any) => {
-      callback(null, '12345\r\n', '');
-    });
+    mockBuildShellCommand.mockReturnValue(['cmd', '/c', 'echo hello world']);
 
     await driver.launch('echo', { args: ['hello', 'world'] });
-    expect(mockExecFile).toHaveBeenCalledWith(
-      'wezterm',
-      expect.arrayContaining(['--', 'cmd', '/c', 'echo hello world']),
-      expect.anything(),
-      expect.any(Function)
+    expect(mockExecWezterm).toHaveBeenCalledWith(
+      expect.arrayContaining(['--', 'cmd', '/c', 'echo hello world'])
     );
+  });
+
+  it('isAlive returns true when pane exists in list', async () => {
+    mockListPaneIds.mockResolvedValue(['12345', '67890']);
+
+    const instance = await driver.launch('echo hello');
+    expect(await driver.isAlive(instance)).toBe(true);
+  });
+
+  it('isAlive returns false when pane is missing from list', async () => {
+    mockListPaneIds.mockResolvedValue(['99999']);
+
+    const instance = await driver.launch('echo hello');
+    expect(await driver.isAlive(instance)).toBe(false);
+  });
+
+  it('isAlive returns false on error', async () => {
+    mockListPaneIds.mockRejectedValue(new Error('list failed'));
+
+    const instance = await driver.launch('echo hello');
+    expect(await driver.isAlive(instance)).toBe(false);
+  });
+
+  it('close(0) triggers kill-pane', async () => {
+    const instance = await driver.launch('echo hello');
+    await driver.close(instance, 0);
+    expect(mockExecWezterm).toHaveBeenCalledWith(
+      expect.arrayContaining(['kill-pane', '--pane-id', '12345'])
+    );
+  });
+
+  it('close(1) preserves the pane', async () => {
+    const instance = await driver.launch('echo hello');
+    await driver.close(instance, 1);
+    const killCalls = mockExecWezterm.mock.calls.filter((call: any) =>
+      call[0]?.includes?.('kill-pane')
+    );
+    expect(killCalls.length).toBe(0);
   });
 });
