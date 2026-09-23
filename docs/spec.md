@@ -1,33 +1,3 @@
-### The 3-Tier Model Resolution Hierarchy
-
-To make this completely bulletproof, we implement a standard 3-tier cascade:
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ 1. CLI Flag Override: /agent scout "..." --model=deepseek   │ (Highest Priority)
-├─────────────────────────────────────────────────────────────┤
-│ 2. Frontmatter Override: model: claude-haiku in scout.md   │ (Specialist Default)
-├─────────────────────────────────────────────────────────────┤
-│ 3. Parent Session Model: Current active model in Pi         │ (Universal Fallback)
-└─────────────────────────────────────────────────────────────┘
-```
-
-In your TypeScript dispatcher, the code is literally one clean line:
-
-```typescript
-const effectiveModel = 
-  cliOptions.model || 
-  manifest.model || 
-  parentSession.getActiveModel();
-```
-
-### Locked In
-We officially add this as **Rule 4.4: The Model Cascade Rule** in our Master Specification. 
-
-Your subagents stay lean on cost when specialized, but seamlessly inherit your current session model by default. Ready to scaffold, Jed?
-
----
-
 # SPEC: Extensible Pi Sub-Agents Architecture
 
 ## 1. Problem Statement
@@ -112,6 +82,28 @@ The extension is partitioned into five distinct, decoupled modules:
    * **Cascading Discovery:** Resolves agent manifests by scanning `./.pi/agents/*.md` first, falling back to `~/.pi/agents/*.md`.
    * **Model Resolution Cascade (Rule 4.4):**
      $$\text{Model} = \text{CLI Flag} \parallel \text{Manifest Frontmatter} \parallel \text{Parent Session Model}$$
+
+     To make this completely bulletproof, we implement a standard 3-tier cascade:
+
+     ```
+     ┌─────────────────────────────────────────────────────────────┐
+     │ 1. CLI Flag Override: /agent scout "..." --model=deepseek   │ (Highest Priority)
+     ├─────────────────────────────────────────────────────────────┤
+     │ 2. Frontmatter Override: model: claude-haiku in scout.md   │ (Specialist Default)
+     ├─────────────────────────────────────────────────────────────┤
+     │ 3. Parent Session Model: Current active model in Pi         │ (Universal Fallback)
+     └─────────────────────────────────────────────────────────────┘
+     ```
+
+     In the TypeScript dispatcher, this resolves to:
+
+     ```typescript
+     const effectiveModel = 
+       cliOptions.model || 
+       manifest.model || 
+       parentSession.getActiveModel();
+     ```
+
    * **Recursion Guard:** Reads and increments `process.env.PI_AGENT_DEPTH`. If `depth > 2`, immediately throws `MaxRecursionDepthExceeded`.
    * **Concurrency Semaphore:** Enforces a maximum of 3 concurrent active agent processes globally to prevent memory paging on 8GB host machines.
 
