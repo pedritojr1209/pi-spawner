@@ -22,6 +22,11 @@ describe('Runtime registry', () => {
     expect(driver.id).toBe('generic');
   });
 
+  it('returns GenericCliRuntime for custom alias', () => {
+    const driver = getRuntimeDriver('custom');
+    expect(driver.id).toBe('generic');
+  });
+
   it('returns PiRuntime for pi', () => {
     const driver = getRuntimeDriver('pi');
     expect(driver.id).toBe('pi');
@@ -39,6 +44,7 @@ describe('Runtime registry', () => {
     expect(runtimes).toContain('agy');
     expect(runtimes).toContain('opencode');
     expect(runtimes).toContain('generic');
+    expect(runtimes).toContain('custom');
     expect(runtimes).toContain('pi');
   });
 });

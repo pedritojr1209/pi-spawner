@@ -1,5 +1,6 @@
 import type { RuntimeAdapter } from './runtime.interface.js';
 import type { AgentManifest } from '../types/agent.js';
+import { escapePrompt } from './shared.js';
 
 export class GenericCliRuntime implements RuntimeAdapter {
   readonly id = 'generic';
@@ -9,10 +10,9 @@ export class GenericCliRuntime implements RuntimeAdapter {
       throw new Error('GenericCliRuntime requires command_template in manifest');
     }
 
-    const escapedTask = task.replace(/"/g, '\\"');
     const command = manifest.command_template
       .replace(/\{taskId\}/g, taskId)
-      .replace(/\{task\}/g, `"${escapedTask}"`);
+      .replace(/\{task\}/g, escapePrompt(task));
 
     return command;
   }

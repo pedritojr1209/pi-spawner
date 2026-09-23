@@ -6,12 +6,15 @@ import { AgyRuntime } from './agy.js';
 import { OpenCodeRuntime } from './opencode.js';
 import { GenericCliRuntime } from './generic.js';
 
+const genericRuntime = new GenericCliRuntime();
+
 const runtimeMap: Record<string, RuntimeAdapter> = {
   pi: new PiRuntime(),
   kilo: new KiloRuntime(),
   agy: new AgyRuntime(),
   opencode: new OpenCodeRuntime(),
-  generic: new GenericCliRuntime(),
+  generic: genericRuntime,
+  custom: genericRuntime,
 };
 
 export function getRuntimeDriver(name: string): RuntimeAdapter {
