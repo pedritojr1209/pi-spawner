@@ -1,4 +1,6 @@
 # Session Handoff — pi-spawner (Google AI Studio Bootstrap)
+- first session link (account: pedritojr1209): https://aistudio.google.com/prompts/17kAekqF4N295I-TMcH1aGThwV3fWn1sU
+- this session handsoff link (account: romboomer28): https://aistudio.google.com/prompts/12n4WLfPr26RiBdEpQw_pDO7-FV1lVNtI
 
 This document closes the current supervisory session and serves as the portable session bootstrap for the next Google AI Studio Guide session.
 
