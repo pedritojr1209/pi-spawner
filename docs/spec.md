@@ -109,7 +109,7 @@ The extension is partitioned into five distinct, decoupled modules:
 
 3. **Surface Abstraction (`src/surfaces/`):**
    * Implements the `SurfaceDriver` interface: `isAvailable()`, `launch(command, options)`, and `kill()`.
-   * `WeztermPaneDriver`: Executes `wezterm cli split-pane` targeting configurable directions/percentages.
+   * `WeztermPaneDriver`: Executes `wezterm cli split-pane` targeting configurable directions/percentages. The driver must capture the integer stdout returned by `wezterm cli split-pane`. On success (`exitCode === 0`), it invokes `wezterm cli kill-pane --pane-id <id>`; on failure, it preserves the pane for user triage.
    * `WeztermTabDriver`: Executes `wezterm cli spawn`.
    * `HeadlessDriver`: Spawns a background Node `child_process` with detached stdio and a 5-minute timeout.
    * **Resilience:** The dispatcher checks `isAvailable()` on the requested surface; if false, it silently degrades to `HeadlessDriver`.
@@ -122,9 +122,10 @@ The extension is partitioned into five distinct, decoupled modules:
    * `OpenCodeRuntime`: Spawns `opencode` for task execution.
    * `GenericCliRuntime`: Universal fallback for ANY new CLI via `command_template` in agent frontmatter.
    * `PwshRuntime`: Spawns native `pwsh.exe -File <script>`.
+   * **Universal Shim Script:** External CLIs (`kilo`, `agy`, `opencode`) are invoked via a lightweight bootstrap script (`bootstrap.ps1`) that injects the prompt from `input.json`, executes the CLI, and synthesizes `result.json` via Git status upon exit.
 
 5. **Governance & Interceptors (`src/interceptors/`):**
-   * `PathGuard`: Intercepts file tools and canonicalizes target paths against `process.cwd()`. Throws an error on path traversal (`..`) or unauthorized drives.
+   * `PathGuard`: Intercepts file tools and canonicalizes target paths against `process.cwd()`. Throws an error on path traversal (`..`) or unauthorized drives. On Windows NTFS (case-insensitive), path canonicalization must normalize drive letters and paths (e.g., using `path.resolve()` and case-folding checks) to avoid false permission rejections.
    * `ToolFilter`: Strips forbidden tool declarations from the subagent's registered schema based on the manifest's `tools` array.
 
 6. **IPC Transport (`src/ipc/`):**
@@ -132,6 +133,8 @@ The extension is partitioned into five distinct, decoupled modules:
    * `input.json`: Contains task prompt, model, depth, and allowed tools.
    * `result.json`: Contains exit code, structured summary (< 300 words), modified files, and completion timestamp.
    * Detection uses a hybrid `fs.watch` with a 500ms `setInterval` polling fallback to survive cross-drive and Windows filesystem buffering issues.
+   * **Atomic Write Pattern:** Writers must write to `.pi/handoffs/<taskId>/result.json.tmp` and execute an atomic rename (`fs.renameSync`) to `result.json` to prevent Windows `EBUSY` / `EPERM` file-locking collisions with the file watcher.
+   * **Orphan Detection:** If a visible pane's process terminates or is closed by the user without producing `result.json`, the task is marked as `ABORTED_BY_USER`.
 
 ---
 
