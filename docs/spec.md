@@ -95,12 +95,12 @@ The extension is partitioned into five distinct, decoupled modules:
        parentTaskId?: string;
        task: string;
        contextMode: ContextMode;
-       context?: {
-         decisions?: string[];
-        constraints?: string[];
-         anchors?: [];
-         transcriptTail?: Array<{ role: 'user' | 'assistant'; content: string }>;
-       };
+        context?: {
+          decisions?: string[];
+          constraints?: string[];
+          anchors?: string[];
+          transcriptTail?: Array<{ role: 'user' | 'assistant'; content: string }>;
+        };
        tools?: string[];
        model?: string;
        cwd?: string;
