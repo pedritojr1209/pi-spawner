@@ -14,9 +14,9 @@ export interface LaunchOptions {
 }
 
 export interface SurfaceInstance {
-  readonly id: string;
-  readonly pid: number;
-  readonly exitCode: number | null;
-  readonly startedAt: Date;
-  readonly endedAt: Date | null;
+  id: string;
+  pid: number;
+  exitCode: number | null;
+  startedAt: Date;
+  endedAt: Date | null;
 }
