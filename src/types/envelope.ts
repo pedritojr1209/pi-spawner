@@ -33,6 +33,7 @@ export interface TaskInput {
   tools?: string[];
   model?: string;
   cwd?: string;
+  depth: number;
 }
 
 export interface TaskResult {

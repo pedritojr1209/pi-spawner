@@ -117,7 +117,11 @@ export class Mailbox {
         try {
           if (existsSync(resultPath)) {
             cleanup();
-            resolve(this.readResult(taskId));
+            try {
+              resolve(this.readResult(taskId));
+            } catch (error) {
+              reject(error instanceof MailboxError ? error : new MailboxError(`Malformed result.json for task ${taskId}`));
+            }
           }
         } catch {
           // ignore transient errors

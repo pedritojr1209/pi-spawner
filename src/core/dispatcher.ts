@@ -3,15 +3,11 @@ import { getRuntimeDriver } from '../runtimes/index.js';
 import { getSurfaceDriver } from '../surfaces/index.js';
 import { Mailbox } from '../ipc/mailbox.js';
 import { projectContext } from '../ipc/contextProjection.js';
+import { MaxRecursionDepthExceeded } from '../governance/index.js';
 import type { AgentManifest } from '../types/agent.js';
 import type { TaskInput } from '../types/envelope.js';
 
-export class MaxRecursionDepthExceeded extends Error {
-  constructor(message = 'Maximum recursion depth exceeded') {
-    super(message);
-    this.name = 'MaxRecursionDepthExceeded';
-  }
-}
+export { MaxRecursionDepthExceeded };
 
 export interface DispatchRequest {
   manifest: AgentManifest;
@@ -67,6 +63,7 @@ export class Dispatcher {
       tools: manifest.tools,
       model: effectiveModel,
       cwd: process.cwd(),
+      depth: depth + 1,
     };
 
     mailbox.writeInput(taskId, input);
