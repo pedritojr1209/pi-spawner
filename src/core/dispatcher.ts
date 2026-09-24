@@ -6,6 +6,7 @@ import { projectContext } from '../ipc/contextProjection.js';
 import { MaxRecursionDepthExceeded } from '../governance/index.js';
 import type { AgentManifest } from '../types/agent.js';
 import type { TaskInput } from '../types/envelope.js';
+import type { SurfaceDriver } from '../surfaces/surface.interface.js';
 
 export { MaxRecursionDepthExceeded };
 
@@ -46,7 +47,12 @@ export class Dispatcher {
 
     const runtime = getRuntimeDriver(manifest.runtime);
 
-    let surface = getSurfaceDriver(manifest.surface);
+    let surface: SurfaceDriver;
+    try {
+      surface = getSurfaceDriver(manifest.surface);
+    } catch {
+      surface = new HeadlessDriver();
+    }
     if (!surface.isAvailable()) {
       surface = new HeadlessDriver();
     }
