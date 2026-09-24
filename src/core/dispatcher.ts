@@ -1,11 +1,10 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { PathGuard, SecurityError } from '../interceptors/pathGuard.js';
 import { HeadlessDriver } from '../surfaces/headless.js';
-import { PiRuntime } from '../runtimes/piRuntime.js';
+import { getRuntimeDriver } from '../runtimes/index.js';
+import { getSurfaceDriver } from '../surfaces/index.js';
 import { Mailbox } from '../ipc/mailbox.js';
+import { projectContext } from '../ipc/contextProjection.js';
 import type { AgentManifest } from '../types/agent.js';
-import type { TaskInputEnvelope } from '../types/envelope.js';
+import type { TaskInput } from '../types/envelope.js';
 
 export class MaxRecursionDepthExceeded extends Error {
   constructor(message = 'Maximum recursion depth exceeded') {
@@ -33,9 +32,6 @@ export interface DispatchResult {
 }
 
 export class Dispatcher {
-  private static driver = new HeadlessDriver();
-  private static runtime = new PiRuntime();
-
   private static getDepth(): number {
     return parseInt(process.env.PI_AGENT_DEPTH || '0', 10);
   }
@@ -52,24 +48,32 @@ export class Dispatcher {
 
     const taskId = `task-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
+    const runtime = getRuntimeDriver(manifest.runtime);
+
+    let surface = getSurfaceDriver(manifest.surface);
+    if (!surface.isAvailable()) {
+      surface = new HeadlessDriver();
+    }
+
+    const command = runtime.buildCommand(manifest, taskId, task);
+
     const mailbox = new Mailbox();
-    const inputEnvelope: TaskInputEnvelope = {
+    const input: TaskInput = {
       taskId,
-      agentName: manifest.name,
-      prompt: task,
+      parentTaskId: undefined,
+      task: projectContext(task, undefined, 'isolated'),
+      contextMode: 'isolated',
+      context: undefined,
+      tools: manifest.tools,
       model: effectiveModel,
-      depth: depth + 1,
-      allowedTools: manifest.tools ?? [],
-      createdAt: new Date().toISOString(),
+      cwd: process.cwd(),
     };
 
-    mailbox.writeInput(taskId, inputEnvelope as any);
+    mailbox.writeInput(taskId, input);
 
     process.env.PI_AGENT_DEPTH = String(depth + 1);
 
-    const command = this.runtime.buildCommand(manifest, taskId, task);
-
-    const instance = await this.driver.launch(command, { cwd: process.cwd() });
+    const instance = await surface.launch(command, { cwd: process.cwd() });
 
     return {
       taskId,

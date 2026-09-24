@@ -104,8 +104,9 @@ describe('Dispatcher integration', () => {
     const inputPath = join(TASKS_DIR, result.taskId, 'input.json');
     const raw = readFileSync(inputPath, 'utf-8');
     const parsed = JSON.parse(raw);
-    expect(parsed.prompt).toBe('do work');
-    expect(parsed.agentName).toBe('test');
+    expect(parsed.task).toBe('do work');
+    expect(parsed.tools).toBeUndefined();
+    expect(parsed.contextMode).toBe('isolated');
   });
 
   it('does not increment PI_AGENT_DEPTH when dispatch throws', async () => {
