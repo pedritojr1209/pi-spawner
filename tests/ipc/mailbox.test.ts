@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Mailbox, MailboxError } from '../../src/ipc/mailbox.js';
-import { writeFileSync, mkdirSync, rmSync, existsSync } from 'fs';
+import { writeFileSync, mkdirSync, rmSync, existsSync, renameSync } from 'fs';
 import { join } from 'path';
 
 const TASKS_DIR = join(process.cwd(), '.pi-spawner', 'tasks');
@@ -61,6 +61,39 @@ describe('Mailbox', () => {
     expect(existsSync(path)).toBe(true);
     const raw = require('fs').readFileSync(path, 'utf-8');
     expect(JSON.parse(raw).exitCode).toBe(0);
+  });
+
+  it('leaves no .tmp file after atomic rename', async () => {
+    const mailbox = new Mailbox();
+    const taskId = 'task-tmp-cleanup';
+    const result = {
+      taskId,
+      exitCode: 0,
+      summary: 'done',
+      modifiedFiles: [],
+      completedAt: new Date().toISOString(),
+    };
+    await mailbox.writeResult(taskId, result);
+    expect(existsSync(join(TASKS_DIR, taskId, 'result.json.tmp'))).toBe(false);
+  });
+
+  it('survives delayed write by reading after tmp is promoted', async () => {
+    const mailbox = new Mailbox();
+    const taskId = 'task-delayed';
+    const result = {
+      taskId,
+      exitCode: 0,
+      summary: 'done',
+      modifiedFiles: [],
+      completedAt: new Date().toISOString(),
+    };
+    const dir = join(TASKS_DIR, taskId);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'result.json.tmp'), JSON.stringify(result, null, 2), 'utf-8');
+    expect(existsSync(join(dir, 'result.json'))).toBe(false);
+    renameSync(join(dir, 'result.json.tmp'), join(dir, 'result.json'));
+    const read = await mailbox.readResult(taskId);
+    expect(read.exitCode).toBe(0);
   });
 
   it('reads result.json back correctly', async () => {

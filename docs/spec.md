@@ -134,7 +134,7 @@ The extension is partitioned into five distinct, decoupled modules:
        parentSession.getActiveModel();
      ```
 
-   * **Recursion Guard:** Reads and increments `process.env.PI_AGENT_DEPTH`. If `depth > 2`, immediately throws `MaxRecursionDepthExceeded`.
+    * **Recursion Guard:** Reads and increments `process.env.PI_AGENT_DEPTH`. If `depth >= 2`, immediately throws `MaxRecursionDepthExceeded`.
    * **Concurrency Semaphore:** Enforces a maximum of 3 concurrent active agent processes globally to prevent memory paging on 8GB host machines.
 
 3. **Surface Abstraction (`src/surfaces/`):**

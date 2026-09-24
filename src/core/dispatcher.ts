@@ -44,7 +44,7 @@ export class Dispatcher {
     const { manifest, task, cliOptions, parentSessionModel } = request;
 
     const depth = this.getDepth();
-    if (depth > 2) {
+    if (depth >= 2) {
       throw new MaxRecursionDepthExceeded();
     }
 
