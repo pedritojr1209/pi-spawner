@@ -13,8 +13,8 @@ describe('Dispatcher', () => {
     process.env.PI_AGENT_DEPTH = '0';
   });
 
-  it('throws MaxRecursionDepthExceeded when depth > 2', async () => {
-    process.env.PI_AGENT_DEPTH = '3';
+  it('throws MaxRecursionDepthExceeded when depth >= 2', async () => {
+    process.env.PI_AGENT_DEPTH = '2';
     const request: DispatchRequest = {
       manifest: {
         name: 'test',
@@ -25,6 +25,44 @@ describe('Dispatcher', () => {
     };
 
     await expect(Dispatcher.dispatch(request)).rejects.toThrow(MaxRecursionDepthExceeded);
+  });
+
+  it('allows dispatch when depth is 1', async () => {
+    process.env.PI_AGENT_DEPTH = '1';
+    vi.mocked(HeadlessDriver.prototype.launch).mockResolvedValue({
+      id: 'inst-1',
+      pid: 1234,
+      exitCode: 0,
+      startedAt: new Date(),
+      endedAt: null,
+    } as any);
+
+    const request: DispatchRequest = {
+      manifest: {
+        name: 'test',
+        runtime: 'pi',
+        surface: 'headless',
+      },
+      task: 'do work',
+    };
+
+    await expect(Dispatcher.dispatch(request)).resolves.toBeDefined();
+    expect(HeadlessDriver.prototype.launch).toHaveBeenCalled();
+  });
+
+  it('does not spawn process when depth >= 2', async () => {
+    process.env.PI_AGENT_DEPTH = '2';
+    const request: DispatchRequest = {
+      manifest: {
+        name: 'test',
+        runtime: 'pi',
+        surface: 'headless',
+      },
+      task: 'do work',
+    };
+
+    await expect(Dispatcher.dispatch(request)).rejects.toThrow(MaxRecursionDepthExceeded);
+    expect(HeadlessDriver.prototype.launch).not.toHaveBeenCalled();
   });
 
   it('resolves model via CLI cascade', async () => {
