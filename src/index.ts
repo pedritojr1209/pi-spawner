@@ -29,7 +29,8 @@ export default function (pi: any) {
   pi.registerCommand('agent', {
     description: 'Dispatch a subagent task using /agent <name> <task>',
     handler: async (args: string, _ctx: any) => {
-      return await Ingress.handleSlashCommand(args);
+      const command = args ? `/agent ${args}`.trim() : '/agent';
+      return await Ingress.handleSlashCommand(command);
     },
   });
 
