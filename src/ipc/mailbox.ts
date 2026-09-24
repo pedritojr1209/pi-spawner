@@ -1,6 +1,6 @@
-import { mkdirSync, writeFileSync, readFileSync, renameSync, existsSync } from 'fs';
+import { mkdirSync, writeFileSync, readFileSync, renameSync, existsSync, watch, type FSWatcher } from 'node:fs';
 import { join, normalize } from 'path';
-import type { TaskInput, TaskResult } from '../types/envelope.js';
+import type { TaskInput, TaskResult, TaskResultEnvelope } from '../types/envelope.js';
 
 export class MailboxError extends Error {
   constructor(message: string) {
@@ -70,7 +70,7 @@ export class Mailbox {
     return finalPath;
   }
 
-  async readResult(taskId: string): Promise<TaskResult> {
+  async readResult(taskId: string): Promise<TaskResultEnvelope> {
     this.validateTaskId(taskId);
     const path = join(this.taskDir(taskId), 'result.json');
     if (!existsSync(path)) {
@@ -78,9 +78,67 @@ export class Mailbox {
     }
     try {
       const raw = readFileSync(path, 'utf-8');
-      return JSON.parse(raw) as TaskResult;
+      return JSON.parse(raw) as TaskResultEnvelope;
     } catch {
       throw new MailboxError(`Malformed result.json for task ${taskId}`);
     }
+  }
+
+  async awaitResult(taskId: string, timeoutMs = 5 * 60 * 1000): Promise<TaskResultEnvelope> {
+    this.validateTaskId(taskId);
+    const resultPath = join(this.taskDir(taskId), 'result.json');
+
+    if (existsSync(resultPath)) {
+      return this.readResult(taskId);
+    }
+
+    return new Promise((resolve, reject) => {
+      const timeoutHandle = setTimeout(() => {
+        cleanup();
+        reject(new MailboxError(`Timeout waiting for result ${taskId} after ${timeoutMs}ms`));
+      }, timeoutMs);
+
+      let pollHandle: NodeJS.Timeout | undefined;
+      let watcher: FSWatcher | undefined;
+
+      const cleanup = () => {
+        clearTimeout(timeoutHandle);
+        if (pollHandle) clearInterval(pollHandle);
+        if (watcher) {
+          try {
+            watcher.close();
+          } catch {
+            // ignore
+          }
+        }
+      };
+
+      const checkResult = () => {
+        try {
+          if (existsSync(resultPath)) {
+            cleanup();
+            try {
+              resolve(this.readResult(taskId));
+            } catch (error) {
+              reject(error instanceof MailboxError ? error : new MailboxError(`Malformed result.json for task ${taskId}`));
+            }
+          }
+        } catch {
+          // ignore transient errors
+        }
+      };
+
+      pollHandle = setInterval(checkResult, 500);
+
+      try {
+        watcher = watch(this.taskDir(taskId), { persistent: false }, (eventType) => {
+          if (eventType === 'rename' || eventType === 'change') {
+            checkResult();
+          }
+        });
+      } catch {
+        // fs.watch may fail on some platforms; rely on polling
+      }
+    });
   }
 }

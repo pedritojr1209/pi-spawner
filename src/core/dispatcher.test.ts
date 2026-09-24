@@ -3,9 +3,11 @@ import { Dispatcher, MaxRecursionDepthExceeded } from './dispatcher.js';
 import type { DispatchRequest } from './dispatcher.js';
 import { HeadlessDriver } from '../surfaces/headless.js';
 import { PiRuntime } from '../runtimes/piRuntime.js';
+import { WezTermPaneDriver } from '../surfaces/weztermPane.js';
 
 vi.mock('../surfaces/headless.js');
 vi.mock('../runtimes/piRuntime.js');
+vi.mock('../surfaces/weztermPane.js');
 
 describe('Dispatcher', () => {
   beforeEach(() => {
@@ -88,5 +90,29 @@ describe('Dispatcher', () => {
 
     await Dispatcher.dispatch(request);
     expect(PiRuntime.prototype.buildCommand).toHaveBeenCalled();
+  });
+
+  it('falls back to HeadlessDriver when surface is unavailable', async () => {
+    process.env.PI_AGENT_DEPTH = '0';
+    vi.mocked(WezTermPaneDriver.prototype.isAvailable).mockReturnValue(false);
+    vi.mocked(HeadlessDriver.prototype.launch).mockResolvedValue({
+      id: 'inst-fallback',
+      pid: 5678,
+      exitCode: 0,
+      startedAt: new Date(),
+      endedAt: null,
+    } as any);
+
+    const request: DispatchRequest = {
+      manifest: {
+        name: 'test',
+        runtime: 'pi',
+        surface: 'wezterm-pane',
+      },
+      task: 'do work',
+    };
+
+    await expect(Dispatcher.dispatch(request)).resolves.toBeDefined();
+    expect(HeadlessDriver.prototype.launch).toHaveBeenCalled();
   });
 });
