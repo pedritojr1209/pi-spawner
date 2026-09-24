@@ -26,12 +26,16 @@ export {
 };
 
 export default function (pi: any) {
-  pi.registerCommand('/agent', async (input: string) => {
-    return await Ingress.handleSlashCommand(input);
+  pi.registerCommand('agent', {
+    description: 'Dispatch a subagent task using /agent <name> <task>',
+    handler: async (args: string, _ctx: any) => {
+      return await Ingress.handleSlashCommand(args);
+    },
   });
 
-  pi.registerTool('subagent', {
-    description: 'Dispatch a subagent task',
+  pi.registerTool({
+    name: 'subagent',
+    description: 'Dispatch a subagent task by agent name',
     parameters: {
       type: 'object',
       properties: {
@@ -40,8 +44,8 @@ export default function (pi: any) {
       },
       required: ['name', 'task'],
     },
-    execute: async (args: { name: string; task: string }) => {
-      return await Ingress.handleSubagentTool(args.name, args.task);
+    execute: async (_toolCallId: string, params: { name: string; task: string }) => {
+      return await Ingress.handleSubagentTool(params.name, params.task);
     },
   });
 }

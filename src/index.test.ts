@@ -6,7 +6,7 @@ describe('extension entry point', () => {
     expect(typeof mod.default).toBe('function');
   });
 
-  it('registers /agent command and subagent tool on pi instance', async () => {
+  it('registers agent command and subagent tool on pi instance', async () => {
     const registerCommand = vi.fn();
     const registerTool = vi.fn();
     const pi = { registerCommand, registerTool };
@@ -14,8 +14,12 @@ describe('extension entry point', () => {
     const mod = await import('./index.js');
     mod.default(pi);
 
-    expect(registerCommand).toHaveBeenCalledWith('/agent', expect.any(Function));
-    expect(registerTool).toHaveBeenCalledWith('subagent', expect.objectContaining({
+    expect(registerCommand).toHaveBeenCalledWith('agent', expect.objectContaining({
+      description: expect.any(String),
+      handler: expect.any(Function),
+    }));
+    expect(registerTool).toHaveBeenCalledWith(expect.objectContaining({
+      name: 'subagent',
       description: expect.any(String),
       parameters: expect.any(Object),
       execute: expect.any(Function),
